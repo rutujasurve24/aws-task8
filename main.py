@@ -474,58 +474,28 @@ systemctl start task8
 # ============================================================
 # CREATE LAUNCH TEMPLATE
 # ============================================================
-
-def create_launch_template(ami_id, ec2_sg_id):
+def create_launch_template(
+    ami_id,
+    security_group_id,
+    instance_profile_name
+):
 
     print("\nCreating Launch Template...")
 
-    user_data = create_user_data()
+    launch_template_name = "task8-launch-template"
 
+    # Check if Launch Template already exists
     try:
 
-        response = ec2.create_launch_template(
-            LaunchTemplateName=LAUNCH_TEMPLATE_NAME,
-            LaunchTemplateData={
-                "ImageId": ami_id,
-
-                "InstanceType": INSTANCE_TYPE,
-
-                "IamInstanceProfile": {
-                    "Name": INSTANCE_PROFILE_NAME
-                },
-
-                "SecurityGroupIds": [
-                    ec2_sg_id
-                ],
-
-                "UserData": user_data
-            }
+        response = ec2.describe_launch_templates(
+            LaunchTemplateNames=[
+                launch_template_name
+            ]
         )
 
-        launch_template_id = response[
-            "LaunchTemplate"
-        ]["LaunchTemplateId"]
+        if response["LaunchTemplates"]:
 
-        print(
-            "Launch Template:",
-            launch_template_id
-        )
-
-        return launch_template_id
-
-    except ClientError as e:
-
-        if "already exists" in str(e):
-
-            response = ec2.describe_launch_templates(
-                LaunchTemplateNames=[
-                    LAUNCH_TEMPLATE_NAME
-                ]
-            )
-
-            launch_template_id = response[
-                "LaunchTemplates"
-            ][0]["LaunchTemplateId"]
+            launch_template_id = response["LaunchTemplates"][0]["LaunchTemplateId"]
 
             print(
                 "Launch Template already exists:",
@@ -534,8 +504,159 @@ def create_launch_template(ami_id, ec2_sg_id):
 
             return launch_template_id
 
-        raise
+    except ec2.exceptions.ClientError as e:
 
+        error_code = e.response["Error"]["Code"]
+
+        if error_code != "InvalidLaunchTemplateName.NotFoundException":
+            raise
+
+    # Flask application setup
+    user_data = """#!/bin/bash
+
+set -e
+
+echo "Starting Task 8 server setup..."
+
+apt-get update -y
+
+apt-get install -y python3 python3-pip python3-venv curl snapd
+
+# Install SSM Agent if required
+if ! snap list amazon-ssm-agent >/dev/null 2>&1; then
+    snap install amazon-ssm-agent --classic
+fi
+
+systemctl enable snap.amazon-ssm-agent.amazon-ssm-agent.service
+systemctl restart snap.amazon-ssm-agent.amazon-ssm-agent.service
+
+# Create application directory
+mkdir -p /opt/task8
+
+# Create virtual environment
+python3 -m venv /opt/task8/venv
+
+# Install Flask
+/opt/task8/venv/bin/pip install --upgrade pip
+/opt/task8/venv/bin/pip install flask
+
+# Create Flask application
+cat > /opt/task8/app.py <<'PYEOF'
+
+from flask import Flask
+import socket
+
+app = Flask(__name__)
+
+@app.route("/")
+def home():
+
+    hostname = socket.gethostname()
+
+    return (
+        "<html>"
+        "<head>"
+        "<title>AWS Task 8</title>"
+        "</head>"
+        "<body>"
+        "<h1>AWS Task 8 Application</h1>"
+        "<h2>Application is running successfully</h2>"
+        "<p>Server: " + hostname + "</p>"
+        "<p>Load Balancer + Auto Scaling</p>"
+        "</body>"
+        "</html>"
+    )
+
+app.run(
+    host="0.0.0.0",
+    port=5000
+)
+
+PYEOF
+
+# Create systemd service
+cat > /etc/systemd/system/task8.service <<'SERVICEEOF'
+
+[Unit]
+Description=AWS Task 8 Flask Application
+After=network.target
+
+[Service]
+User=root
+WorkingDirectory=/opt/task8
+ExecStart=/opt/task8/venv/bin/python /opt/task8/app.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+
+SERVICEEOF
+
+systemctl daemon-reload
+
+systemctl enable task8
+
+systemctl restart task8
+
+sleep 10
+
+curl -f http://127.0.0.1:5000/ || true
+
+echo "Task 8 application setup completed."
+
+"""
+
+    # Create Launch Template
+    response = ec2.create_launch_template(
+
+        LaunchTemplateName=launch_template_name,
+
+        VersionDescription="Task 8 Flask Application",
+
+        LaunchTemplateData={
+
+            "ImageId": ami_id,
+
+            "InstanceType": "t3.micro",
+
+            "SecurityGroupIds": [
+                security_group_id
+            ],
+
+            "IamInstanceProfile": {
+                "Name": instance_profile_name
+            },
+
+            "UserData": base64.b64encode(
+                user_data.encode("utf-8")
+            ).decode("utf-8"),
+
+            "TagSpecifications": [
+                {
+                    "ResourceType": "instance",
+
+                    "Tags": [
+                        {
+                            "Key": "Name",
+                            "Value": "Task8-Web-Server"
+                        }
+                    ]
+                }
+            ]
+        }
+    )
+
+    launch_template_id = response[
+        "LaunchTemplate"
+    ]["LaunchTemplateId"]
+
+    print(
+        "Launch Template created:",
+        launch_template_id
+    )
+
+    return launch_template_id
 
 # ============================================================
 # CREATE TARGET GROUP
