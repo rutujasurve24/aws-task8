@@ -26,15 +26,15 @@ EC2_ROLE_NAME = "Task8-EC2-SSM-Role"
 INSTANCE_PROFILE_NAME = "Task8-EC2-SSM-Profile"
 
 
-# ============================================================
-# AWS CLIENTS
-# ============================================================
+# # ============================================================
+# # AWS CLIENTS
+# # ============================================================
 
-ec2 = boto3.client("ec2", region_name=REGION)
-elbv2 = boto3.client("elbv2", region_name=REGION)
-autoscaling = boto3.client("autoscaling", region_name=REGION)
-ssm = boto3.client("ssm", region_name=REGION)
-iam = boto3.client("iam")
+# ec2 = boto3.client("ec2", region_name=REGION)
+# elbv2 = boto3.client("elbv2", region_name=REGION)
+# autoscaling = boto3.client("autoscaling", region_name=REGION)
+# ssm = boto3.client("ssm", region_name=REGION)
+# iam = boto3.client("iam")
 
 
 # ============================================================
@@ -484,7 +484,7 @@ def create_launch_template(ami_id, ec2_sg_id):
     try:
 
         response = ec2.create_launch_template(
-            LaunchTemplateName=LAUNCH_TEMPLATE_NAME,
+            launch_template_name = f"task8-launch-template-{int(time.time())}",
             LaunchTemplateData={
                 "ImageId": ami_id,
 
