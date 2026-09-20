@@ -484,7 +484,7 @@ def create_launch_template(ami_id, ec2_sg_id):
     try:
 
         response = ec2.create_launch_template(
-            launch_template_name = f"task8-launch-template-{int(time.time())}",
+            LaunchTemplateName=LAUNCH_TEMPLATE_NAME,
             LaunchTemplateData={
                 "ImageId": ami_id,
 
