@@ -1,3 +1,10 @@
+name: AWS Task 8 Automation
+
+on:
+  push:
+    branches:
+      - main
+
 permissions:
   id-token: write
   contents: read
@@ -7,6 +14,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -33,19 +41,15 @@ jobs:
           payload = jwt.split(".")[1]
           payload += "=" * (-len(payload) % 4)
 
-          claims = json.loads(base64.urlsafe_b64decode(payload))
+          claims = json.loads(
+              base64.urlsafe_b64decode(payload)
+          )
 
-          for key in [
-              "iss",
-              "aud",
-              "sub",
-              "repository",
-              "ref",
-              "job_workflow_ref",
-              "repository_owner",
-              "repository_visibility"
-          ]:
-              print(f"{key}: {claims.get(key)}")
+          print("aud:", claims.get("aud"))
+          print("sub:", claims.get("sub"))
+          print("repository:", claims.get("repository"))
+          print("ref:", claims.get("ref"))
+          print("job_workflow_ref:", claims.get("job_workflow_ref"))
           PY
 
       - name: Configure AWS credentials
