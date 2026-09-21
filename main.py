@@ -682,32 +682,12 @@ python3 -m venv /opt/task8/venv
 cat > /opt/task8/app.py <<'PYEOF'
 
 from flask import Flask
-import socket
 
 app = Flask(__name__)
 
 @app.route("/")
 def home():
-
-    return f'''
-    <html>
-    <head>
-        <title>AWS Task 8</title>
-    </head>
-
-    <body>
-
-        <h1>AWS Task 8 Application</h1>
-
-        <h2>Application is running successfully</h2>
-
-        <p>Server: {socket.gethostname()}</p>
-
-        <p>Load Balancer + Auto Scaling</p>
-
-    </body>
-    </html>
-    '''
+    return "Application is running successfully"
 
 app.run(
     host="0.0.0.0",
